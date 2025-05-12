@@ -6,7 +6,28 @@ namespace DbReader.Sources;
 
 public class SQLite : IDisposable, ISource
 {
-    private SqliteConnection? Connection { get; set; } = null;
+    private const string SINGLE_TILE_QUERY = @"SELECT x, y, z, data
+        FROM tiles
+        WHERE detail_zoom = $detail_zoom
+            AND object_type = $object_type
+            AND osm_key = $osm_key
+            AND osm_value = $osm_value
+            AND x = $x
+            AND y = $y
+            AND z = $z";
+    private const string MULTI_TILE_QUERY = @"SELECT x, y, z, data
+        FROM tiles
+        WHERE detail_zoom = $detail_zoom
+            AND object_type = $object_type
+            AND osm_key = $osm_key
+            AND osm_value = $osm_value
+            AND x >= $x_min
+            AND x < $x_max
+            AND y >= $y_min
+            AND y < $y_max
+            AND z = $z";
+
+    private SqliteConnection Connection { get; }
 
     public SQLite(string filename)
     {
@@ -34,15 +55,18 @@ public class SQLite : IDisposable, ISource
 
     protected virtual void Dispose(bool disposing)
     {
-        if (disposing && this.Connection != null)
+        if (disposing)
         {
             this.Connection.Dispose();
-            this.Connection = null;
         }
     }
 
     private static int GetDetailZoom(int z, string value, DataType type)
     {
+        if (type == DataType.Points) {
+            return 14;
+        }
+
         int[] detailZooms = [0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14];
         switch (value) {
             case "terrain":
@@ -60,13 +84,7 @@ public class SQLite : IDisposable, ISource
                 break;
         }
 
-        var detailZoom = detailZooms[Math.Max(Math.Min(z, 14), 0)];
-
-        if (type == DataType.Points) {
-            detailZoom = 14;
-        }
-
-        return detailZoom;
+        return detailZooms[Math.Max(Math.Min(z, detailZooms.Length - 1), 0)];
     }
 
     public async Task<List<byte>> GetRawDataAsync(int x, int y, int z, string key, string value = "", DataType type = DataType.Polygons)
@@ -89,36 +107,15 @@ public class SQLite : IDisposable, ISource
         var detailZoom = GetDetailZoom(z, value, type);
 
         var maxTileZoom = 16;
-        List<byte> data = [];
+        var data = new List<byte>();
         var numberOfTiles = 0;
         var tileWeight = 0UL;
 
-        var singleTileQuery = @"SELECT x, y, z, data
-            FROM tiles
-            WHERE detail_zoom = $detail_zoom
-                AND object_type = $object_type
-                AND osm_key = $osm_key
-                AND osm_value = $osm_value
-                AND x = $x
-                AND y = $y
-                AND z = $z";
-        var multiTileQuery = @"SELECT x, y, z, data
-            FROM tiles
-            WHERE detail_zoom = $detail_zoom
-                AND object_type = $object_type
-                AND osm_key = $osm_key
-                AND osm_value = $osm_value
-                AND x >= $x_min
-                AND x < $x_max
-                AND y >= $y_min
-                AND y < $y_max
-                AND z = $z";
-
         for (var queryZ = 0; queryZ <= maxTileZoom; queryZ++) {
-            var command = this.Connection!.CreateCommand();
+            var command = this.Connection.CreateCommand();
 
             if (queryZ <= z) {
-                command.CommandText = singleTileQuery;
+                command.CommandText = SINGLE_TILE_QUERY;
                 command.Parameters.AddWithValue("$detail_zoom", detailZoom);
                 command.Parameters.AddWithValue("$object_type", type.ToString());
                 command.Parameters.AddWithValue("$osm_key", key);
@@ -133,7 +130,7 @@ public class SQLite : IDisposable, ISource
                 var queryRightX = queryLeftX + (1 << (queryZ - z));
                 var queryBottomY = queryTopY + (1 << (queryZ - z));
 
-                command.CommandText = multiTileQuery;
+                command.CommandText = MULTI_TILE_QUERY;
                 command.Parameters.AddWithValue("$detail_zoom", detailZoom);
                 command.Parameters.AddWithValue("$object_type", type.ToString());
                 command.Parameters.AddWithValue("$osm_key", key);
