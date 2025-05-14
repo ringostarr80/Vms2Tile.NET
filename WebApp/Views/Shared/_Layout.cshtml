@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Vms2TileServer</title>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@@materializecss/materialize@2.1.1/dist/css/materialize.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/@@materializecss/materialize@2.1.1/dist/js/materialize.min.js"></script>
+        @if (ViewHelpers.IsActive(ViewContext, "Demo")) {
+            <link rel="stylesheet" href="~/css/demo.css" />
+            <script type="module" src="~/js/demo.js"></script>
+        }
+    </head>
+    <body>
+        <nav>
+            <div class="nav-wrapper">
+                <a href="#" class="brand-logo right">Logo</a>
+                <ul id="nav-mobile" class="left hide-on-med-and-down">
+                    <li><a href="./" class="@(ViewHelpers.IsActive(ViewContext, "Home") ? "active" : "")">Home</a></li>
+                    <li><a href="./demo" class="@(ViewHelpers.IsActive(ViewContext, "Demo") ? "active" : "")">Demo</a></li>
+                </ul>
+            </div>
+        </nav>
+        <div id="content">
+            @RenderBody()
+        </div>
+    </body>
+</html>

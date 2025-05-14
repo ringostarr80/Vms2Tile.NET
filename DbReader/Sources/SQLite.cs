@@ -67,22 +67,11 @@ public class SQLite : IDisposable, ISource
             return 14;
         }
 
-        int[] detailZooms = [0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14];
-        switch (value) {
-            case "terrain":
-            case "depth":
-                detailZooms = [0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 12];
-                break;
-
-            case "bathymetry":
-            case "blue_marble":
-            case "elevation":
-                detailZooms = [0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 10, 10, 10];
-                break;
-
-            default: // ignore
-                break;
-        }
+        int[] detailZooms = value switch {
+            "terrain" or "depth" => [0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 12],
+            "bathymetry" or "blue_marble" or "elevation" => [0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 10, 10, 10],
+            _ => [0, 0, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 14]
+        };
 
         return detailZooms[Math.Max(Math.Min(z, detailZooms.Length - 1), 0)];
     }
